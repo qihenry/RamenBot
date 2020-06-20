@@ -5,24 +5,72 @@ const Discord = require("discord.js")
 const client = new Discord.Client()
 //turn on
 var suggestionArray = [];
+
+
 client.on("ready", () => {
-  console.log(`Logged in as ${client.user.tag}!`)
+  console.log(`Logged in as ${client.user.tag}!`);
+  // Send the message to a designated channel on a server:
+
 })
 
 function arrayToString(a,b,c){
     var arrayString = '';
-    if(a.length === 2){
+    //need this for the suggestions when intializing a word
+    /*if(a.length === 2){
         return ' ';
-    }
+    }*/
     for(; b < c;b++){
-        arrayString = arrayString + " " + a[b];
+        if(arrayString === ''){
+            arrayString = a[b];
+        }
+        else{
+            arrayString = arrayString + " " + a[b];
+        }   
     }
     return arrayString;
 }
 
+//starts at 2 because the first 2 words must be used
+function containWord(array, word){
+    for(i = 0; i < array.length; i++){
+        if(word === array[i]){
+            return i;
+        }
+    }
+    return -1;
+} 
+//turn on verifiction
+client.on("message", msg => {
+    if(msg.author.bot) return;
+    if(msg.content[0] !== '!') return;
+    var msgContent = msg.content.split(" ");
+    if(msgContent[0] === "!verificationOn"){
+        let Vchannel = msg.member.guild.channels.cache.find(ch => ch.name === 'verification');
+        if(!Vchannel) return;
+        Vchannel.messages.fetch({ limit: 1 })
+        /*let Vmessage = Vchannel.messages.cache.first();
+        if(Vmessage != null){
+            Vmessage.react("✅");
+        }*/
+    }
+})
+//actual verification part
+client.on("messageReactionAdd", (reaction, user) =>{
+    if(reaction.emoji.name === "✅") {
+        console.log("that worked");
+        let roleName = "Member";
+        let role = reaction.message.guild.roles.cache.find(r => r.name === roleName);
+        if(role == null){
+            reaction.message.reply(roleName + " not found");
+        }
+        else{
+            reaction.message.member.roles.add(role);
+            //reaction.message.reply(roleName + " has been added");
+        }
+    }
+})
 //!suggestion event
 client.on("message", msg => {
-    
     // It's good practice to ignore other bots. This also makes your bot ignore itself
     // and not get into a spam loop (we call that "botception").
     if(msg.author.bot) return;
@@ -81,10 +129,6 @@ client.on("message", msg => {
     if(msg.content[0] !== '!') return;
     
     var msgContent = msg.content.split(" ");
-    /*if(msg.content.substring(0,8) == '!approve'){
-        const channel = msg.guild.channels.cache.find(ch => ch.name === 'suggestions');
-        channel.send(msgContent[1]);
-    }*/
     
     if(msgContent[0] === "!approve") {
         
@@ -118,10 +162,6 @@ client.on("message", msg => {
     if(msg.content[0] !== '!') return;
     
     var msgContent = msg.content.split(" ");
-    /*if(msg.content.substring(0,8) == '!approve'){
-        const channel = msg.guild.channels.cache.find(ch => ch.name === 'suggestions');
-        channel.send(msgContent[1]);
-    }*/
     
     if(msgContent[0] === "!deny") {
         if(msgContent.length < 3){
@@ -146,6 +186,7 @@ client.on("message", msg => {
         msg.delete();
     }
 });
+
 //create channel
 client.on("message", msg =>{
     if(msg.author.bot) return;
@@ -154,10 +195,41 @@ client.on("message", msg =>{
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
     if(msgContent[0] === "!create"){
+        var channelType = {reason: 'Needed a cool new channel'};
+        //topic keyword channel
+        if(containWord(msgContent, "topic") > 0){
+            var phrase = '';
+            for(i = containWord(msgContent, "topic") + 1; msgContent[i] !== ',' && i < msgContent.length; i++){
+                phrase = phrase +  " " + msgContent[i];
+            }
+            channelType.topic = phrase;
+            msg.reply(phrase);
+        }
+        if(containWord(msgContent, "category") > 0){
+
+        }
         msg.reply("made new channel");
-        msg.guild.channels.create(msgContent[1], { reason: 'Needed a cool new channel' })
+        msg.guild.channels.create(msgContent[1], channelType);
     }
 });
+
+//add roles
+client.on('message', msg =>{
+    if(msg.author.bot) return;
+    if(msg.content[0] !== '!') return;
+    var msgContent = msg.content.split(" ");
+    if(msgContent[0] === "!addRole"){
+        var roleName = arrayToString(msgContent, 1, msgContent.length);
+        var role = msg.guild.roles.cache.find(r => r.name === roleName);
+        if(role == null){
+            msg.reply(roleName + " not found");
+        }
+        else{
+            msg.member.roles.add(role);
+            msg.reply(roleName + " has been added");
+        }
+    }
+})
 //welcome for when a member joins
 client.on('guildMemberAdd',member => {
   
