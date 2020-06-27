@@ -5,7 +5,7 @@ const Discord = require("discord.js")
 const client = new Discord.Client()
 //turn on
 var suggestionArray = [];
-
+var pinnedMsg = [];
 
 client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -54,6 +54,28 @@ client.on("message", msg => {
         }*/
     }
 })
+//turn on tickets
+client.on("message", msg => {
+    if(msg.author.bot) return;
+    if(msg.content[0] !== '!') return;
+    var msgContent = msg.content.split(" ");
+    if(msgContent[0] === "!ticketOn"){
+        const suggestionEmbed = new Discord.MessageEmbed()
+            .setColor('#000000')
+            .setTitle('CREATE A TICKET')
+            .setDescription("React with one of the emoji's below to create a ticket" + '\n' + 
+                            ':mag: ➥ General Support' + '\n' +   
+                            ':shopping_cart: ➥ Buycraft' + '\n' + 
+                            ':envelope: ➥ Appeals' )
+        msg.channel.send(suggestionEmbed).then(embedMessage => {
+            embedMessage.react("🔍");
+            embedMessage.react("🛒");
+            embedMessage.react("✉️");
+            pinnedMsg.push(embedMessage.id);
+        })          
+    }
+});
+
 //actual verification part
 client.on("messageReactionAdd", (reaction, user) =>{
     if(reaction.emoji.name === "✅") {
@@ -186,7 +208,26 @@ client.on("message", msg => {
         msg.delete();
     }
 });
+//fetch channel to the cache
+client.on("message", msg =>{
+    if(msg.author.bot) return;
+    // Also good practice to ignore any message that does not start with our prefix, 
+    // which is set in the configuration file.
+    if(msg.content[0] !== '!') return;
+    var msgContent = msg.content.split(" ");
 
+    if(msgContent[0] === "!fetchChannel" ){
+        if(msgContent.length === 1){
+            msg.reply("not enough arguments");
+            return;
+        }
+        let id = msgContent[1];
+        msg.client.channels.fetch(id)
+            .then(channel => console.log(channel.name))
+            .catch(console.error);
+        msg.reply("done");
+    }
+});
 //create channel
 client.on("message", msg =>{
     if(msg.author.bot) return;
@@ -206,7 +247,24 @@ client.on("message", msg =>{
             msg.reply(phrase);
         }
         if(containWord(msgContent, "category") > 0){
-
+            let categoryName = '';
+            for(i = containWord(msgContent, "category") + 1, j = 0; msgContent[i] !== ',' && i < msgContent.length; i++){
+                if(j === 0){
+                    categoryName = msgContent[i];
+                    j++;
+                }
+                else{
+                    categoryName = categoryName + " " + msgContent[i];
+                }
+            }
+            msg.reply("category name is" + categoryName + 'h');
+            var categoryId = msg.guild.channels.cache.find(c => c.name === categoryName && c.type === "category");
+            if(categoryId == null){
+                msg.reply("Couldn't find category");
+            }
+            else{
+                channelType.parent = categoryId.id;
+            }
         }
         msg.reply("made new channel");
         msg.guild.channels.create(msgContent[1], channelType);
