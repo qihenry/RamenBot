@@ -3,22 +3,36 @@ require("dotenv").config()
 //need discord API library
 const Discord = require("discord.js")
 const client = new Discord.Client()
-//turn on
+
+//****************************************************
+//Variables and function to assist some event features
+//****************************************************
+
+//keep track of the ids of suggestions
 var suggestionArray = [];
+//keep track of the id message of messages that can be reacted to
 var pinnedMsg = [];
-
-client.on("ready", () => {
-  console.log(`Logged in as ${client.user.tag}!`);
-  // Send the message to a designated channel on a server:
-
-})
-
+//keep track of which room is available
+var availableTickets = [];
+var availableBuycraft = [];
+var availableAppeal = [];
+for(var i = 0; i < 100; i++){
+    availableTickets.push(true);
+    availableAppeal.push(true);
+    availableBuycraft.push(true);
+}
+//finds the next available spot;
+function Roomavailable(a){
+    for(var i = 0; i < a.length; i++){
+        if(a[i]){
+            return i;
+        }
+    }
+    return -1;
+}
+//with a given array, and index of b and c, create a string from array[b] to array[c];
 function arrayToString(a,b,c){
     var arrayString = '';
-    //need this for the suggestions when intializing a word
-    /*if(a.length === 2){
-        return ' ';
-    }*/
     for(; b < c;b++){
         if(arrayString === ''){
             arrayString = a[b];
@@ -29,8 +43,7 @@ function arrayToString(a,b,c){
     }
     return arrayString;
 }
-
-//starts at 2 because the first 2 words must be used
+//returns the index of the word in the array. Returns -1 if it is not in the array
 function containWord(array, word){
     for(i = 0; i < array.length; i++){
         if(word === array[i]){
@@ -38,8 +51,18 @@ function containWord(array, word){
         }
     }
     return -1;
-} 
-//turn on verifiction
+}
+
+//******************* 
+//Events
+//*******************
+
+//turn on
+client.on("ready", () => {
+  console.log(`Logged in as ${client.user.tag}!`);
+})
+ 
+//turn on verifiction by fetching the verification message in the verification channel
 client.on("message", msg => {
     if(msg.author.bot) return;
     if(msg.content[0] !== '!') return;
@@ -48,18 +71,20 @@ client.on("message", msg => {
         let Vchannel = msg.member.guild.channels.cache.find(ch => ch.name === 'verification');
         if(!Vchannel) return;
         Vchannel.messages.fetch({ limit: 1 })
-        /*let Vmessage = Vchannel.messages.cache.first();
+        let Vmessage = Vchannel.messages.cache.first();
         if(Vmessage != null){
             Vmessage.react("✅");
-        }*/
+        }
     }
 })
-//turn on tickets
+
+//turn on tickets. Sends the embedded message that the users will react to
 client.on("message", msg => {
     if(msg.author.bot) return;
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
     if(msgContent[0] === "!ticketOn"){
+        //The embedded message
         const suggestionEmbed = new Discord.MessageEmbed()
             .setColor('#000000')
             .setTitle('CREATE A TICKET')
@@ -67,43 +92,187 @@ client.on("message", msg => {
                             ':mag: ➥ General Support' + '\n' +   
                             ':shopping_cart: ➥ Buycraft' + '\n' + 
                             ':envelope: ➥ Appeals' )
+        //sending the message and using callback functions to put the emotes
         msg.channel.send(suggestionEmbed).then(embedMessage => {
             embedMessage.react("🔍");
             embedMessage.react("🛒");
             embedMessage.react("✉️");
             pinnedMsg.push(embedMessage.id);
-        })          
+        })
+        msg.delete();          
     }
 });
 
-//actual verification part
+//actual verification part. If the user reacts with the green checkmark, then the bot will 
+//it a role that will grant access to the server. It does this by checking if the emoji
+//matched and then using find of the role cache to check if the role is present. If it is
+//give the role to the reactor
 client.on("messageReactionAdd", (reaction, user) =>{
+    let message = reaction.message;
+    if(user.bot) return;
     if(reaction.emoji.name === "✅") {
         console.log("that worked");
         let roleName = "Member";
-        let role = reaction.message.guild.roles.cache.find(r => r.name === roleName);
+        let role = message.guild.roles.cache.find(r => r.name === roleName);
         if(role == null){
-            reaction.message.reply(roleName + " not found");
+            message.reply(roleName + " not found");
         }
         else{
-            reaction.message.member.roles.add(role);
-            //reaction.message.reply(roleName + " has been added");
+            message.member.roles.add(role);
+            reaction.message.reply(roleName + " has been added");
         }
     }
 })
-//!suggestion event
-client.on("message", msg => {
-    // It's good practice to ignore other bots. This also makes your bot ignore itself
-    // and not get into a spam loop (we call that "botception").
-    if(msg.author.bot) return;
-  
-    // Also good practice to ignore any message that does not start with our prefix, 
-    // which is set in the configuration file.
-    if(msg.content[0] !== '!') return;
 
+//This checks for reaction on the ticket embeded message. If reacted, it will find the 
+//next available room and create a channel. Needs to do part where a channel is deleted
+client.on("messageReactionAdd", (reaction, user) =>{
+    let message = reaction.message
+    if(user.bot) return;
+    let emoji = reaction.emoji;
+    //If reacted with a 🔍, it will create a general support room. 
+    if(emoji.name == '🔍' && pinnedMsg.includes(message.id)){
+        var channelType = {reason: 'Needed a cool new channel'};
+        //Category channel name
+        let categoryName = 'General Support';
+        //gives the actual id of the category channel
+        let categoryId = message.guild.channels.cache.find(c => c.name === categoryName && c.type === "category");
+        if(categoryId == null){
+            message.reply("Couldn't find category");
+            return;
+        }
+        else{
+            channelType.parent = categoryId.id;
+        }
+        //looks for the next available rooms and save the number
+        let roomNumber = Roomavailable(availableTickets);
+        //make it not available;
+        availableTickets[roomNumber] = false;
+        //creates the room and mention the role that will help the ticket
+        message.guild.channels.create("TICKET" + roomNumber, channelType).then(channel => {
+            var role = message.guild.roles.cache.find(r => r.name === '➥ Staff');
+            
+            if(role == null){
+                channel.send("Role not found");
+                return;
+            }
+            else{
+                var roleID = role.id;
+                channel.send('➥ ' + message.author.username + ' has opened a General Support ticket!' 
+                             + "<@&" + roleID + ">" + 'will get to you as soon as possible.');
+            }
+        });
+    }
+    //If reacted with a 🛒, it will create a Buycraft room
+    if(emoji.name == '🛒' && pinnedMsg.includes(message.id)){
+        let channelType ={reason: 'Needed a cool new channel'};
+        let categoryName = 'Buycraft';
+        //gives the actual id of the category channel
+        var categoryId = message.guild.channels.cache.find(c => c.name === categoryName && c.type === "category");
+        if(categoryId == null){
+            message.reply("Couldn't find category");
+            return;
+        }
+        else{
+            channelType.parent = categoryId.id;
+        }
+        //looks for the next available rooms and save the number
+        let roomNumber = Roomavailable(availableBuycraft);
+        //make it not available;
+        availableBuycraft[roomNumber] = false;
+        //creates the room and mention the role that will help the ticket
+        message.guild.channels.create("BUYCRAFT" + roomNumber, channelType).then(channel => {
+            var role = message.guild.roles.cache.find(r => r.name === '➥ Owner');
+            var role1 = message.guild.roles.cache.find(r => r.name === 'Administrator');
+            var role2 = message.guild.roles.cache.find(r => r.name === '*');
+            var role3 = message.guild.roles.cache.find(r => r.name === 'Manager');
+            if(role == null || role1 == null || role2 == null || role3 == null){
+                channel.send("Role not found");
+                return;
+            }
+            else{
+                var roleID = role.id;
+                var role1ID = role1.id;
+                var role2ID = role2.id;
+                var role3ID = role3.id;
+                channel.send('➥ ' + message.author.username + 
+                             ' has opened a Buycraft ticket!' +
+                             "<@&" + roleID + ">" + " " + "<@&" + role1ID + ">" + " " +
+                             "<@&" + role2ID + ">" + " " + "<@&" + role3ID + ">" + 
+                             'will get to you as soon as possible.');
+            }
+        });
+    }
+
+    //If reacted with a ✉️, it will create an Appeals room
+    if(emoji.name == '✉️' && pinnedMsg.includes(message.id)){
+        let channelType ={reason: 'Needed a cool new channel'};
+        let categoryName = 'Appeals';
+        //gives the actual id of the category channel
+        var categoryId = message.guild.channels.cache.find(c => c.name === categoryName && c.type === "category");
+        if(categoryId == null){
+            message.reply("Couldn't find category");
+            return;
+        }
+        else{
+            channelType.parent = categoryId.id;
+        }
+        //looks for the next available rooms and save the number
+        let roomNumber = Roomavailable(availableAppeal);
+        //make it not available;
+        availableAppeal[roomNumber] = false;
+        //creates the room and mention the role that will help the ticket
+        message.guild.channels.create("Appeal" + roomNumber, channelType).then(channel => {
+            var role = message.guild.roles.cache.find(r => r.name === 'Appeals');
+            
+            if(role == null){
+                channel.send("Role not found");
+                return;
+            }
+            else{
+                var roleID = role.id;
+                channel.send('➥ ' + message.author.username + ' has opened a Appeal ticket!' 
+                             + "<@&" + roleID + ">" + 'will get to you as soon as possible.');
+            }
+        });
+    }
+});
+
+//This is calle by !delete. By default, it will delete the channel the message was sent on.
+//THING TOO ADD:
+//ROLE NEEDED TO DELETE
+//ARGUMENT TO DELETE SPECIFIC CHANNEL
+//Make the room available again
+client.on("message", msg => {
+    //prevents reading bot messages.
+    if(msg.author.bot) return;
+    // Prevents reading non keywords
+    if(msg.content[0] !== '!') return;
+    var msgContent = msg.content.split(" ");
+    if(msgContent[0] === "!delete"){
+        let theChannel = msg.channel;
+        if(theChannel.parent.name === "Support"){
+            let roomNumber = theChannel.name.substring(7);
+            availableTickets[roomNumber] = true; 
+        }
+        //the other types
+        msg.channel.delete();
+    }
+}); 
+
+//This is called by !suggestion. It's format is !suggestion <suggestion> because <reason>.
+//The suggestion is posted on the suggestion channel where it can be approved or denied 
+//by the mods.
+client.on("message", msg => {
+    // Prevents reading bot messages.
+    if(msg.author.bot) return;
+    // Prevents reading non keywords
+    if(msg.content[0] !== '!') return;
+    //An array of each word of the message
     var msgContent = msg.content.split(" ");
 
     if (msgContent[0] === "!suggestion") {
+        //needs to be longer than two otherwise there's no suggestion
         if(msgContent.length < 2){
             msg.reply('you need a suggestion');
             return;
@@ -112,6 +281,7 @@ client.on("message", msg => {
         const channel = msg.guild.channels.cache.find(ch => ch.name === 'suggestions');
         // Do nothing if the channel wasn't found on this server
         if (!channel) return;
+        //Find where the reason is and store it to the variable why
         var whyIndex = msg.content.search('because');
         var sugg = msg.content.substring(12);
         var why = "Not provided";
@@ -121,6 +291,7 @@ client.on("message", msg => {
             why = msg.content.substring(whyIndex + 7) 
         }
         msg.delete()
+        //The embedded message that will have the suggestion content in a prettier display
         const suggestionEmbed = new Discord.MessageEmbed()
             .setColor('#000000')
             .setTitle('───────────────:sparkles:SUGGESTION:sparkles:───────────────')
@@ -135,11 +306,10 @@ client.on("message", msg => {
         });
         suggestionArray.push(suggestionEmbed);
     }
-    
-
 });
 
-//approval
+//called by !approve. The format is !approve <suggestion id> <reason>. It will create an
+//approve embedded message to the approve channel
 client.on("message", msg => {
     
     // It's good practice to ignore other bots. This also makes your bot ignore itself
@@ -158,7 +328,6 @@ client.on("message", msg => {
         const channel = msg.guild.channels.cache.find(ch => ch.name === 'accepted');
         // Do nothing if the channel wasn't found on this server
         if (!channel) return;
-        //msg.delete();
         var id = msgContent[1];
         var reason = arrayToString(msgContent,2,msgContent.length);
         const receivedEmbed = suggestionArray[id];
@@ -172,7 +341,8 @@ client.on("message", msg => {
     }
 });
 
-//deny
+//called by !deny. The format is !deny <suggestion ID> <reason>. It will create a denied
+//post on the denied channel
 client.on("message", msg => {
     
     // It's good practice to ignore other bots. This also makes your bot ignore itself
@@ -208,7 +378,8 @@ client.on("message", msg => {
         msg.delete();
     }
 });
-//fetch channel to the cache
+
+//fetch channel to the cache. Not sure if its needed.
 client.on("message", msg =>{
     if(msg.author.bot) return;
     // Also good practice to ignore any message that does not start with our prefix, 
@@ -228,6 +399,7 @@ client.on("message", msg =>{
         msg.reply("done");
     }
 });
+
 //create channel
 client.on("message", msg =>{
     if(msg.author.bot) return;
@@ -288,6 +460,7 @@ client.on('message', msg =>{
         }
     }
 })
+
 //welcome for when a member joins
 client.on('guildMemberAdd',member => {
   
