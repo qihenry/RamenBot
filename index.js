@@ -400,7 +400,7 @@ client.on("message", msg =>{
     }
 });
 
-//create channel
+//create channel by calling !create <name> followed by channel attributes such as <topic> and <category>
 client.on("message", msg =>{
     if(msg.author.bot) return;
     // Also good practice to ignore any message that does not start with our prefix, 
@@ -443,7 +443,7 @@ client.on("message", msg =>{
     }
 });
 
-//add roles
+//add roles by calling !addRole <Role Name>. 
 client.on('message', msg =>{
     if(msg.author.bot) return;
     if(msg.content[0] !== '!') return;
@@ -461,7 +461,7 @@ client.on('message', msg =>{
     }
 })
 
-//welcome for when a member joins
+//welcome when a member joins. Sends an embedded message. Maybe have to change it so that it sends the welcome after the members verify themselves
 client.on('guildMemberAdd',member => {
   
     
