@@ -1,9 +1,19 @@
 //to hide token
-require("dotenv").config()
+//require("dotenv").config()
 //need discord API library
-const Discord = require("discord.js")
-const client = new Discord.Client()
+const fs = require('fs');
+const Discord = require("discord.js");
+const { prefix, token } = require('./config.json');
+const client = new Discord.Client();
+client.commands = new Discord.Collection();
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+for (const file of commandFiles) {
+	const command = require(`./commands/${file}`);
 
+	// set a new item in the Collection
+	// with the key as the command name and the value as the exported module
+	client.commands.set(command.name, command);
+}
 //****************************************************
 //Variables and function to assist some event features
 //****************************************************
@@ -30,28 +40,6 @@ function Roomavailable(a){
     }
     return -1;
 }
-//with a given array, and index of b and c, create a string from array[b] to array[c];
-function arrayToString(a,b,c){
-    var arrayString = '';
-    for(; b < c;b++){
-        if(arrayString === ''){
-            arrayString = a[b];
-        }
-        else{
-            arrayString = arrayString + " " + a[b];
-        }   
-    }
-    return arrayString;
-}
-//returns the index of the word in the array. Returns -1 if it is not in the array
-function containWord(array, word){
-    for(i = 0; i < array.length; i++){
-        if(word === array[i]){
-            return i;
-        }
-    }
-    return -1;
-}
 
 //******************* 
 //Events
@@ -62,44 +50,23 @@ client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`);
 })
  
-//turn on verifiction by fetching the verification message in the verification channel
+//called by !verificationOn. Turns on verifiction by fetching the verification message in the verification channel
 client.on("message", msg => {
     if(msg.author.bot) return;
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
     if(msgContent[0] === "!verificationOn"){
-        let Vchannel = msg.member.guild.channels.cache.find(ch => ch.name === 'verification');
-        if(!Vchannel) return;
-        Vchannel.messages.fetch({ limit: 1 })
-        let Vmessage = Vchannel.messages.cache.first();
-        if(Vmessage != null){
-            Vmessage.react("✅");
-        }
+        client.commands.get('verificationOn').execute(msg, msgContent);
     }
 })
 
-//turn on tickets. Sends the embedded message that the users will react to
+//Called by !ticketOn. Turns on tickets. Sends the embedded message that the users will react to
 client.on("message", msg => {
     if(msg.author.bot) return;
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
     if(msgContent[0] === "!ticketOn"){
-        //The embedded message
-        const suggestionEmbed = new Discord.MessageEmbed()
-            .setColor('#000000')
-            .setTitle('CREATE A TICKET')
-            .setDescription("React with one of the emoji's below to create a ticket" + '\n' + 
-                            ':mag: ➥ General Support' + '\n' +   
-                            ':shopping_cart: ➥ Buycraft' + '\n' + 
-                            ':envelope: ➥ Appeals' )
-        //sending the message and using callback functions to put the emotes
-        msg.channel.send(suggestionEmbed).then(embedMessage => {
-            embedMessage.react("🔍");
-            embedMessage.react("🛒");
-            embedMessage.react("✉️");
-            pinnedMsg.push(embedMessage.id);
-        })
-        msg.delete();          
+        client.commands.get('ticketOn').execute(msg, msgContent);      
     }
 });
 
@@ -238,7 +205,7 @@ client.on("messageReactionAdd", (reaction, user) =>{
     }
 });
 
-//This is calle by !delete. By default, it will delete the channel the message was sent on.
+//This is called by !delete. By default, it will delete the channel the message was sent on.
 //THING TOO ADD:
 //ROLE NEEDED TO DELETE
 //ARGUMENT TO DELETE SPECIFIC CHANNEL
@@ -250,13 +217,7 @@ client.on("message", msg => {
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
     if(msgContent[0] === "!delete"){
-        let theChannel = msg.channel;
-        if(theChannel.parent.name === "Support"){
-            let roomNumber = theChannel.name.substring(7);
-            availableTickets[roomNumber] = true; 
-        }
-        //the other types
-        msg.channel.delete();
+        client.commands.get('delete').execute(msg,msgContent);
     }
 }); 
 
@@ -272,39 +233,7 @@ client.on("message", msg => {
     var msgContent = msg.content.split(" ");
 
     if (msgContent[0] === "!suggestion") {
-        //needs to be longer than two otherwise there's no suggestion
-        if(msgContent.length < 2){
-            msg.reply('you need a suggestion');
-            return;
-        }
-        // Send the message to a designated channel on a server:
-        const channel = msg.guild.channels.cache.find(ch => ch.name === 'suggestions');
-        // Do nothing if the channel wasn't found on this server
-        if (!channel) return;
-        //Find where the reason is and store it to the variable why
-        var whyIndex = msg.content.search('because');
-        var sugg = msg.content.substring(12);
-        var why = "Not provided";
-        var suggestionId = suggestionArray.length;
-        if(whyIndex > 0){
-            sugg = msg.content.substring(11,whyIndex)
-            why = msg.content.substring(whyIndex + 7) 
-        }
-        msg.delete()
-        //The embedded message that will have the suggestion content in a prettier display
-        const suggestionEmbed = new Discord.MessageEmbed()
-            .setColor('#000000')
-            .setTitle('───────────────:sparkles:SUGGESTION:sparkles:───────────────')
-            .setDescription( '***Suggestion:***' + '```'+ sugg + '```' + "\n" + 
-                             '***Reasoning:***' + '```'+ why +  '```' +'\n' + 
-                             '**`created by:`** ' + msg.author.toString() + '\n' +
-                             '***:sparkles:─────────────────────────────────────────────:sparkles:***')
-            .setFooter(suggestionId)
-        channel.send(suggestionEmbed).then(embedMessage => {
-            embedMessage.react("👍");
-            embedMessage.react("👎");
-        });
-        suggestionArray.push(suggestionEmbed);
+        client.commands.get('suggestion').execute(msg,msgContent,suggestionArray);
     }
 });
 
@@ -323,21 +252,7 @@ client.on("message", msg => {
     var msgContent = msg.content.split(" ");
     
     if(msgContent[0] === "!approve") {
-        
-        // Send the message to a designated channel on a server:
-        const channel = msg.guild.channels.cache.find(ch => ch.name === 'accepted');
-        // Do nothing if the channel wasn't found on this server
-        if (!channel) return;
-        var id = msgContent[1];
-        var reason = arrayToString(msgContent,2,msgContent.length);
-        const receivedEmbed = suggestionArray[id];
-        const exampleEmbed = new Discord.MessageEmbed(receivedEmbed)
-            .setTitle('───────────:sparkles:SUGGESTION APPROVED:sparkles:───────────')
-            .addFields(
-                { name: '**Reason for approval**', value: " " + reason }
-            )
-        channel.send(exampleEmbed);
-        msg.delete();
+        client.commands.get('approve').execute(msg,msgContent,suggestionArray);
     }
 });
 
@@ -356,26 +271,7 @@ client.on("message", msg => {
     var msgContent = msg.content.split(" ");
     
     if(msgContent[0] === "!deny") {
-        if(msgContent.length < 3){
-            msg.reply('Remainder: you need a id and reason');
-            msg.delete();
-            return;
-        }
-        // Send the message to a designated channel on a server:
-        const channel = msg.guild.channels.cache.find(ch => ch.name === 'denied');
-        // Do nothing if the channel wasn't found on this server
-        if (!channel) return;
-        //msg.delete();
-        var id = msgContent[1];
-        var reason = arrayToString(msgContent,2,msgContent.length);
-        const receivedEmbed = suggestionArray[id];
-        const exampleEmbed = new Discord.MessageEmbed(receivedEmbed)
-            .setTitle('───────────:sparkles:SUGGESTION DENIED:sparkles:───────────')
-            .addFields(
-                { name: '**Reason for denial**', value: " " + reason }
-            )
-        channel.send(exampleEmbed);
-        msg.delete();
+        client.commands.get('deny').execute(msg,msgContent,suggestionArray);        
     }
 });
 
@@ -408,38 +304,7 @@ client.on("message", msg =>{
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
     if(msgContent[0] === "!create"){
-        var channelType = {reason: 'Needed a cool new channel'};
-        //topic keyword channel
-        if(containWord(msgContent, "topic") > 0){
-            var phrase = '';
-            for(i = containWord(msgContent, "topic") + 1; msgContent[i] !== ',' && i < msgContent.length; i++){
-                phrase = phrase +  " " + msgContent[i];
-            }
-            channelType.topic = phrase;
-            msg.reply(phrase);
-        }
-        if(containWord(msgContent, "category") > 0){
-            let categoryName = '';
-            for(i = containWord(msgContent, "category") + 1, j = 0; msgContent[i] !== ',' && i < msgContent.length; i++){
-                if(j === 0){
-                    categoryName = msgContent[i];
-                    j++;
-                }
-                else{
-                    categoryName = categoryName + " " + msgContent[i];
-                }
-            }
-            msg.reply("category name is" + categoryName + 'h');
-            var categoryId = msg.guild.channels.cache.find(c => c.name === categoryName && c.type === "category");
-            if(categoryId == null){
-                msg.reply("Couldn't find category");
-            }
-            else{
-                channelType.parent = categoryId.id;
-            }
-        }
-        msg.reply("made new channel");
-        msg.guild.channels.create(msgContent[1], channelType);
+        client.commands.get('create').execute(msg,msgContent);
     }
 });
 
@@ -449,15 +314,7 @@ client.on('message', msg =>{
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
     if(msgContent[0] === "!addRole"){
-        var roleName = arrayToString(msgContent, 1, msgContent.length);
-        var role = msg.guild.roles.cache.find(r => r.name === roleName);
-        if(role == null){
-            msg.reply(roleName + " not found");
-        }
-        else{
-            msg.member.roles.add(role);
-            msg.reply(roleName + " has been added");
-        }
+        client.commands.get('addRole').execute(msg,msgContent);
     }
 })
 
@@ -481,4 +338,4 @@ client.on('guildMemberAdd',member => {
 
     channel.send(exampleEmbed)
   });
-client.login(process.env.BOT_TOKEN)
+client.login(token)
