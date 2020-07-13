@@ -49,31 +49,62 @@ function Roomavailable(a){
 client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`);
 })
- 
-//called by !verificationOn. Turns on verifiction by fetching the verification message in the verification channel
+
+//All the messages commands
 client.on("message", msg => {
     if(msg.author.bot) return;
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
+    //called by !verificationOn. Turns on verifiction by fetching the verification 
+    //message in the verification channel
     if(msgContent[0] === "!verificationOn"){
         client.commands.get('verificationOn').execute(msg, msgContent);
     }
+    //Turns on tickets. Sends the embedded message that the users will react to in 
+    //order to create the room
+    else if(msgContent[0] === "!ticketOn"){
+        client.commands.get('ticketOn').execute(msg, msgContent, pinnedMsg);      
+    }
+    //This is called by !delete. By default, it will delete the channel the message
+    //was sent on.
+    //THING TOO ADD:
+    //ROLE NEEDED TO DELETE
+    //ARGUMENT TO DELETE SPECIFIC CHANNEL
+    //Make the room available again
+    else if(msgContent[0] === "!delete"){
+        client.commands.get('delete').execute(msg,msgContent);
+    }
+    //This is called by !suggestion. It's format is !suggestion <suggestion> because 
+    //<reason>. The suggestion is posted on the suggestion channel where it can be 
+    //approved or denied by the mods.
+    else if (msgContent[0] === "!suggestion") {
+        client.commands.get('suggestion').execute(msg,msgContent,suggestionArray);
+    }
+    //called by !approve. The format is !approve <suggestion id> <reason>. It will 
+    //create an approve embedded message to the approve channel
+    else if(msgContent[0] === "!approve") {
+        client.commands.get('approve').execute(msg,msgContent,suggestionArray);
+    }
+    //called by !deny. The format is !deny <suggestion ID> <reason>. It will create 
+    //a denied post on the denied channel
+    else if(msgContent[0] === "!deny") {
+        client.commands.get('deny').execute(msg,msgContent,suggestionArray);        
+    }
+    //create channel by calling !create <name> followed by channel attributes such as
+    //<topic> and <category>
+    else if(msgContent[0] === "!create"){
+        client.commands.get('create').execute(msg,msgContent);
+    }
+    //add roles by calling !addRole <Role Name>. 
+    else if(msgContent[0] === "!addRole"){
+        client.commands.get('addRole').execute(msg,msgContent);
+    }
 })
 
-//Called by !ticketOn. Turns on tickets. Sends the embedded message that the users will react to
-client.on("message", msg => {
-    if(msg.author.bot) return;
-    if(msg.content[0] !== '!') return;
-    var msgContent = msg.content.split(" ");
-    if(msgContent[0] === "!ticketOn"){
-        client.commands.get('ticketOn').execute(msg, msgContent);      
-    }
-});
-
-//actual verification part. If the user reacts with the green checkmark, then the bot will 
-//it a role that will grant access to the server. It does this by checking if the emoji
-//matched and then using find of the role cache to check if the role is present. If it is
-//give the role to the reactor
+//actual verification part. If the user reacts with the green checkmark, then the bot 
+//will it a role that will grant access to the server. It does this by checking if the 
+//emoji matched and then using find of the role cache to check if the role is present. 
+//If it is give the role to the reactor
 client.on("messageReactionAdd", (reaction, user) =>{
     let message = reaction.message;
     if(user.bot) return;
@@ -125,8 +156,10 @@ client.on("messageReactionAdd", (reaction, user) =>{
             }
             else{
                 var roleID = role.id;
-                channel.send('➥ ' + message.author.username + ' has opened a General Support ticket!' 
-                             + "<@&" + roleID + ">" + 'will get to you as soon as possible.');
+                channel.send('➥ ' + message.author.username + 
+                             ' has opened a General Support ticket!' 
+                             + "<@&" + roleID + ">" + 
+                             'will get to you as soon as possible.');
             }
         });
     }
@@ -198,80 +231,12 @@ client.on("messageReactionAdd", (reaction, user) =>{
             }
             else{
                 var roleID = role.id;
-                channel.send('➥ ' + message.author.username + ' has opened a Appeal ticket!' 
-                             + "<@&" + roleID + ">" + 'will get to you as soon as possible.');
+                channel.send('➥ ' + message.author.username + 
+                             ' has opened a Appeal ticket!' + 
+                             "<@&" + roleID + ">" + 
+                             'will get to you as soon as possible.');
             }
         });
-    }
-});
-
-//This is called by !delete. By default, it will delete the channel the message was sent on.
-//THING TOO ADD:
-//ROLE NEEDED TO DELETE
-//ARGUMENT TO DELETE SPECIFIC CHANNEL
-//Make the room available again
-client.on("message", msg => {
-    //prevents reading bot messages.
-    if(msg.author.bot) return;
-    // Prevents reading non keywords
-    if(msg.content[0] !== '!') return;
-    var msgContent = msg.content.split(" ");
-    if(msgContent[0] === "!delete"){
-        client.commands.get('delete').execute(msg,msgContent);
-    }
-}); 
-
-//This is called by !suggestion. It's format is !suggestion <suggestion> because <reason>.
-//The suggestion is posted on the suggestion channel where it can be approved or denied 
-//by the mods.
-client.on("message", msg => {
-    // Prevents reading bot messages.
-    if(msg.author.bot) return;
-    // Prevents reading non keywords
-    if(msg.content[0] !== '!') return;
-    //An array of each word of the message
-    var msgContent = msg.content.split(" ");
-
-    if (msgContent[0] === "!suggestion") {
-        client.commands.get('suggestion').execute(msg,msgContent,suggestionArray);
-    }
-});
-
-//called by !approve. The format is !approve <suggestion id> <reason>. It will create an
-//approve embedded message to the approve channel
-client.on("message", msg => {
-    
-    // It's good practice to ignore other bots. This also makes your bot ignore itself
-    // and not get into a spam loop (we call that "botception").
-    if(msg.author.bot) return;
-  
-    // Also good practice to ignore any message that does not start with our prefix, 
-    // which is set in the configuration file.
-    if(msg.content[0] !== '!') return;
-    
-    var msgContent = msg.content.split(" ");
-    
-    if(msgContent[0] === "!approve") {
-        client.commands.get('approve').execute(msg,msgContent,suggestionArray);
-    }
-});
-
-//called by !deny. The format is !deny <suggestion ID> <reason>. It will create a denied
-//post on the denied channel
-client.on("message", msg => {
-    
-    // It's good practice to ignore other bots. This also makes your bot ignore itself
-    // and not get into a spam loop (we call that "botception").
-    if(msg.author.bot) return;
-  
-    // Also good practice to ignore any message that does not start with our prefix, 
-    // which is set in the configuration file.
-    if(msg.content[0] !== '!') return;
-    
-    var msgContent = msg.content.split(" ");
-    
-    if(msgContent[0] === "!deny") {
-        client.commands.get('deny').execute(msg,msgContent,suggestionArray);        
     }
 });
 
@@ -296,29 +261,8 @@ client.on("message", msg =>{
     }
 });
 
-//create channel by calling !create <name> followed by channel attributes such as <topic> and <category>
-client.on("message", msg =>{
-    if(msg.author.bot) return;
-    // Also good practice to ignore any message that does not start with our prefix, 
-    // which is set in the configuration file.
-    if(msg.content[0] !== '!') return;
-    var msgContent = msg.content.split(" ");
-    if(msgContent[0] === "!create"){
-        client.commands.get('create').execute(msg,msgContent);
-    }
-});
-
-//add roles by calling !addRole <Role Name>. 
-client.on('message', msg =>{
-    if(msg.author.bot) return;
-    if(msg.content[0] !== '!') return;
-    var msgContent = msg.content.split(" ");
-    if(msgContent[0] === "!addRole"){
-        client.commands.get('addRole').execute(msg,msgContent);
-    }
-})
-
-//welcome when a member joins. Sends an embedded message. Maybe have to change it so that it sends the welcome after the members verify themselves
+//welcome when a member joins. Sends an embedded message. Maybe have to change it 
+//so that it sends the welcome after the members verify themselves
 client.on('guildMemberAdd',member => {
   
     
@@ -332,7 +276,8 @@ client.on('guildMemberAdd',member => {
 	    .setColor('#000000')
 	    .setTitle('Welcome to EclipticMC!')
 	    .setThumbnail(member.user.avatarURL())
-        .setDescription('Hello' + ' ' + member.user.toString() + ', ' + 'you have been chosen to be a warrior of ***EclipticMC!*** ' +
+        .setDescription('Hello' + ' ' + member.user.toString() + ', ' + 
+                        'you have been chosen to be a warrior of ***EclipticMC!*** ' +
                         ' The Throne still remains vacant but only one can acquire the seat on the throne.' +
                         ' To find out about the story behind this game, continue to the next channel.')
 
