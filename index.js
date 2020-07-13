@@ -48,7 +48,7 @@ function Roomavailable(a){
 //turn on
 client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`);
-})
+});
 
 //All the messages commands
 client.on("message", msg => {
@@ -99,7 +99,7 @@ client.on("message", msg => {
     else if(msgContent[0] === "!addRole"){
         client.commands.get('addRole').execute(msg,msgContent);
     }
-})
+});
 
 //actual verification part. If the user reacts with the green checkmark, then the bot 
 //will it a role that will grant access to the server. It does this by checking if the 
@@ -120,7 +120,7 @@ client.on("messageReactionAdd", (reaction, user) =>{
             reaction.message.reply(roleName + " has been added");
         }
     }
-})
+});
 
 //This checks for reaction on the ticket embeded message. If reacted, it will find the 
 //next available room and create a channel. Needs to do part where a channel is deleted
@@ -149,7 +149,6 @@ client.on("messageReactionAdd", (reaction, user) =>{
         //creates the room and mention the role that will help the ticket
         message.guild.channels.create("TICKET" + roomNumber, channelType).then(channel => {
             var role = message.guild.roles.cache.find(r => r.name === '➥ Staff');
-            
             if(role == null){
                 channel.send("Role not found");
                 return;
@@ -247,7 +246,6 @@ client.on("message", msg =>{
     // which is set in the configuration file.
     if(msg.content[0] !== '!') return;
     var msgContent = msg.content.split(" ");
-
     if(msgContent[0] === "!fetchChannel" ){
         if(msgContent.length === 1){
             msg.reply("not enough arguments");
@@ -264,8 +262,6 @@ client.on("message", msg =>{
 //welcome when a member joins. Sends an embedded message. Maybe have to change it 
 //so that it sends the welcome after the members verify themselves
 client.on('guildMemberAdd',member => {
-  
-    
     // Send the message to a designated channel on a server:
     const channel = member.guild.channels.cache.find(ch => ch.name === 'welcome');
     // Do nothing if the channel wasn't found on this server
