@@ -3,7 +3,7 @@ const Discord = require("discord.js");
 module.exports = {
 	name: 'ticketOn',
 	description: 'Sends an embedded message that will allow users to react in order to create tickets',
-	execute(msg, msgContent) {
+	execute(msg, msgContent, pinnedMsg) {
         //The embedded message
         const suggestionEmbed = new Discord.MessageEmbed()
         .setColor('#000000')
